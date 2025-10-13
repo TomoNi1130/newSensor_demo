@@ -3,16 +3,11 @@
 AMT21::AMT21(const PinName tx, const PinName rx, const int baud, const PinName de) : rs485_(tx, rx, baud, de) {}
 
 bool AMT21::request_pos(const uint8_t address) {
-  static std::map<uint8_t, int> count;
-  if (count[address] < -5) count[address] = -5;
-  if (count[address] > 5) count[address] = 5;
   rs485_.uart_transmit({address});  // request postion -> <node_address>
   if (uint16_t now_pos; rs485_.uart_receive(&now_pos, sizeof(now_pos), 5ms) && is_valid(now_pos)) {
     pos_[address] = (now_pos & 0x3fff) >> 2;  // 12bit
-    count[address]--;
     return true;
   }
-  count[address]++;
   return false;
 }
 

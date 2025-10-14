@@ -3,6 +3,7 @@
 #include "mbed.h"
 
 BufferedSerial pc{USBTX, USBRX, 115200};
+BufferedSerial satu{PA_0, PA_1, 115200};
 DigitalIn user(BUTTON1);
 
 Timer timer;
@@ -36,20 +37,37 @@ void address_srch() {
 int main() {
   std::map<uint8_t, int32_t> real_pos;  // pos + turn*rotate
   std::map<uint8_t, int32_t> offset;
-  Thread thread;
-  thread.start(address_srch);
+  // Thread thread;
+  // thread.start(address_srch);
   timer.start();
   auto pre = timer.elapsed_time();
   printf("\nsetup\n");
+  // pc.write("setup\n", 6);
   while (true) {
     auto now = timer.elapsed_time();
-    if (now - pre > 10ms) {
-      amt.request_all(addresses);
-      for (uint8_t address : addresses) {
-        real_pos[address] = amt.pos_[address] + amt.turn_[address] * AMT21::rotate;
-        printf("[0x%x]: %ld ", address, real_pos[address]);
+    if (now - pre > 1000ms) {
+      printf("running...\n");
+      if (!user.read()) {
+        satu.write("button\n", 7);
+        printf("send\n");
       }
-      printf("\n");
+      if (satu.readable()) {
+        printf("recv\n");
+        char c;
+        satu.read(&c, 1);
+        pc.write(&c, 1);
+      }
+      // if (satu.readable()) {
+      //   pc.write("satu\n", 5);
+      // }
+      // satu.write("hello\n", 6);
+
+      // amt.request_all(addresses);
+      // for (uint8_t address : addresses) {
+      //   real_pos[address] = amt.pos_[address] + amt.turn_[address] * AMT21::rotate;
+      //   printf("[0x%x]: %ld ", address, real_pos[address]);
+      // }
+      // printf("\n");
       pre = now;
     }
   }

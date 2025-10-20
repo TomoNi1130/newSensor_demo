@@ -5,7 +5,7 @@
 #include <mbed.h>
 
 struct Rs485 {
-  Rs485(const PinName tx, const PinName rx, const int baud, const PinName de) : bus_{PB_6, PA_10, baud}, de_{de} {
+  Rs485(const PinName tx, const PinName rx, const int baud, const PinName de) : bus_{tx, rx, baud}, de_{de} {
     bus_.set_blocking(0);
   }
   void uart_transmit(const uint8_t *send, const int len) {
@@ -15,7 +15,7 @@ struct Rs485 {
     wait_us(3);
     de_ = 0;
   }
-  template<int N>
+  template <int N>
   void uart_transmit(const uint8_t (&send)[N]) {
     uart_transmit(send, sizeof(send));
   }
@@ -24,20 +24,22 @@ struct Rs485 {
     uint8_t *p = reinterpret_cast<uint8_t *>(buf);
     const uint8_t *end = p + len;
     do {
-      if(bus_.read(p, 1) > 0 && ++p == end) {
+      if (bus_.read(p, 1) > 0 && ++p == end) {
         return (wait_ns(275), true);
       }
-    } while(Kernel::Clock::now() - pre < timeout);
+    } while (Kernel::Clock::now() - pre < timeout);
     return false;
   }
-  template<int N>
+  template <int N>
   bool uart_receive(uint8_t (&buf)[N], const std::chrono::milliseconds timeout) {
     return uart_receive(buf, sizeof(buf), timeout);
   }
+
  private:
   void flush() {
     uint8_t buf;
-    while(bus_.read(&buf, 1) > 0) {}
+    while (bus_.read(&buf, 1) > 0) {
+    }
   }
   BufferedSerial bus_;
   DigitalOut de_;

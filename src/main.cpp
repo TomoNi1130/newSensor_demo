@@ -3,17 +3,20 @@
 #include "mbed.h"
 
 BufferedSerial pc{USBTX, USBRX, 115200};
-BufferedSerial satu{PA_0, PA_1, 115200};
+// BufferedSerial satu{PA_0, PA_1, 115200};
 DigitalIn user(BUTTON1);
 
 Timer timer;
 
 bool push = false;
 
-AMT21 amt(PB_6, PA_10, (int)2e6, PC_0);
-QEI encoder(PA_0, PA_1, QEI::X2_ENCODING);
+AMT21 amt(PA_9, PA_10, (int)2e6, PC_0);
+// AMT21 amt(PA_0, PA_1, (int)2e6, PC_0);
+// AMT21 amt(PB_6, PA_10, (int)2e6, PC_0);
+// QEI encoder(PA_0, PA_1, QEI::X2_ENCODING);
 
 std::vector<uint8_t> addresses;
+std::map<uint8_t, int32_t> offset;
 
 void address_srch() {
   printf("\nsrch\n");
@@ -22,8 +25,10 @@ void address_srch() {
       for (int col = 0; col < 16; col += 2) {  // 上位 nibble (0x0, 0x2, 0x4, ..., 0xE)
         uint8_t address = (row * 4) | (col << 4);
         if (amt.request_pos(address) && amt.request_turn(address)) {
-          if (std::find(addresses.begin(), addresses.end(), address) == addresses.end())
+          if (std::find(addresses.begin(), addresses.end(), address) == addresses.end()) {
             addresses.push_back(address);
+            offset[address] = amt.turn_[address] * AMT21::rotate;
+          }
         } else if (std::find(addresses.begin(), addresses.end(), address) != addresses.end()) {
           addresses.erase(std::remove(addresses.begin(), addresses.end(), address), addresses.end());
         }
@@ -36,38 +41,20 @@ void address_srch() {
 
 int main() {
   std::map<uint8_t, int32_t> real_pos;  // pos + turn*rotate
-  std::map<uint8_t, int32_t> offset;
-  // Thread thread;
-  // thread.start(address_srch);
+  Thread thread;
+  thread.start(address_srch);
   timer.start();
   auto pre = timer.elapsed_time();
   printf("\nsetup\n");
-  // pc.write("setup\n", 6);
   while (true) {
     auto now = timer.elapsed_time();
-    if (now - pre > 1000ms) {
-      printf("running...\n");
-      if (!user.read()) {
-        satu.write("button\n", 7);
-        printf("send\n");
+    if (now - pre > 100ms) {
+      amt.request_all(addresses);
+      for (uint8_t address : addresses) {
+        real_pos[address] = (amt.pos_[address] + amt.turn_[address] * AMT21::rotate) - offset[address];
+        printf("[0x%x]: %ld ", address, real_pos[address]);
       }
-      if (satu.readable()) {
-        printf("recv\n");
-        char c;
-        satu.read(&c, 1);
-        pc.write(&c, 1);
-      }
-      // if (satu.readable()) {
-      //   pc.write("satu\n", 5);
-      // }
-      // satu.write("hello\n", 6);
-
-      // amt.request_all(addresses);
-      // for (uint8_t address : addresses) {
-      //   real_pos[address] = amt.pos_[address] + amt.turn_[address] * AMT21::rotate;
-      //   printf("[0x%x]: %ld ", address, real_pos[address]);
-      // }
-      // printf("\n");
+      printf("\n");
       pre = now;
     }
   }

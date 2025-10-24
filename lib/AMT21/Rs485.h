@@ -8,21 +8,21 @@ struct Rs485 {
   Rs485(const PinName tx, const PinName rx, const int baud, const PinName de) : bus_{tx, rx, baud}, de_{de} {
     bus_.set_blocking(0);
   }
-  void uart_transmit(const uint8_t *send, const int len) {
+  void uart_transmit(const uint8_t* send, const int len) {
     de_ = 1;
     flush();
     bus_.write(send, len);
-    wait_us(3);
+    wait_us(3.5);
     de_ = 0;
   }
   template <int N>
   void uart_transmit(const uint8_t (&send)[N]) {
     uart_transmit(send, sizeof(send));
   }
-  bool uart_receive(void *buf, const int len, const std::chrono::milliseconds timeout) {
+  bool uart_receive(void* buf, const int len, const std::chrono::milliseconds timeout) {
     auto pre = Kernel::Clock::now();
-    uint8_t *p = reinterpret_cast<uint8_t *>(buf);
-    const uint8_t *end = p + len;
+    uint8_t* p = reinterpret_cast<uint8_t*>(buf);
+    const uint8_t* end = p + len;
     do {
       if (bus_.read(p, 1) > 0 && ++p == end) {
         return (wait_ns(275), true);
